@@ -777,6 +777,8 @@ function upgrade30_dbchanges5()
 		$db->drop_table("spamlog");
 	}
 
+	$collation = $db->build_create_table_collation();
+
 	switch($db->type)
 	{
 		case "sqlite":
@@ -840,13 +842,13 @@ function upgrade30_dbchanges5()
 				incorrect int unsigned NOT NULL default 0,
 				active tinyint(1) NOT NULL default '0',
 				PRIMARY KEY (qid)
-			) ENGINE=MyISAM;");
+			) ENGINE=MyISAM{$collation}");
 			$db->write_query("CREATE TABLE ".TABLE_PREFIX."questionsessions (
 				sid varchar(32) NOT NULL default '',
 				qid int unsigned NOT NULL default '0',
 				dateline int unsigned NOT NULL default '0',
 				PRIMARY KEY (sid)
-			) ENGINE=MyISAM;");
+			) ENGINE=MyISAM{$collation}");
 			$db->write_query("CREATE TABLE ".TABLE_PREFIX."spamlog (
 				sid int unsigned NOT NULL auto_increment,
 				username varchar(120) NOT NULL DEFAULT '',
@@ -855,7 +857,7 @@ function upgrade30_dbchanges5()
 				dateline int unsigned NOT NULL default '0',
 				data text NOT NULL,
 				PRIMARY KEY (sid)
-			) ENGINE=MyISAM;");
+			) ENGINE=MyISAM{$collation}");
 	}
 
 	global $footer_extra;
@@ -986,6 +988,11 @@ function upgrade30_dbchanges6()
 	if($db->field_exists('ipaddress', 'privatemessages'))
 	{
 		$db->drop_column("privatemessages", "ipaddress");
+	}
+
+	if($db->field_exists('maxoptions', 'polls'))
+	{
+		$db->drop_column("polls", "maxoptions");
 	}
 
 	switch($db->type)
@@ -1461,7 +1468,7 @@ function upgrade30_dbchanges_optimize2()
 
 					foreach($index as $_index => $keys)
 					{
-						$db->write_query("ALTER TABLE ".TABLE_PREFIX."{$table} ADD INDEX `{$index}`(`".implode('`, `', $keys)."`)");
+						$db->write_query("ALTER TABLE ".TABLE_PREFIX."{$table} ADD INDEX `{$_index}`(`".implode('`, `', $keys)."`)");
 					}
 				}
 			}
@@ -1665,10 +1672,9 @@ function upgrade30_dbchanges_smilies()
 	echo "<p>Performing necessary upgrade queries...</p>";
 	flush();
 
-
-	if($db->type == 'sqlite')
+	if($db->type == 'pgsql')
 	{
-		$db->modify_column("smilies", "find", "TEXT NOT NULL");
+		$db->modify_column("smilies", "find", "text", "set");
 	}
 	else
 	{
@@ -1830,10 +1836,10 @@ function upgrade30_dbchanges_ip()
 					echo "<p>Converting thread rating IPs...</p>";
 					flush();
 					$query = $db->simple_select("threadratings", "COUNT(rid) AS ipcount");
-					echo "<p>Converting session IPs...</p>";
-					flush();
 					break;
 				case 5:
+					echo "<p>Converting session IPs...</p>";
+					flush();
 					$query = $db->simple_select("sessions", "COUNT(sid) AS ipcount");
 					break;
 				case 4:
@@ -2009,7 +2015,7 @@ function upgrade30_dbchanges_ip()
 
 					$table = 'searchlog';
 					$column = 'ipaddress';
-					// Skip conversation
+					// Skip conversion
 					$db->delete_query('searchlog');
 					break;
 				case 5:
@@ -2039,7 +2045,7 @@ function upgrade30_dbchanges_ip()
 
 					$table = 'adminsessions';
 					$column = 'ip';
-					// Skip conversation
+					// Skip conversion
 					$db->delete_query('adminsessions');
 					break;
 				default:
@@ -2061,10 +2067,10 @@ function upgrade30_dbchanges_ip()
 					$db->modify_column($table, $column, "bytea USING {$column}::bytea", 'set', "''");
 					break;
 				case "sqlite":
-					$db->modify_column($table, $column, "blob(16) NOT NULL");
+					$db->modify_column($table, $column, "blob(16) NOT NULL default ''");
 					break;
 				default:
-					$db->modify_column($table, $column, "varbinary(16) NOT NULL");
+					$db->modify_column($table, $column, "varbinary(16) NOT NULL default ''");
 					break;
 			}
 			if($mybb->input['iptable'] < 10)
@@ -2114,7 +2120,7 @@ function upgrade30_dbchanges_ip()
 	}
 	else
 	{
-		$contents = "<p><input type=\"hidden\" name=\"iptask\" value=\"{$next_task}\" />{$iptable}{$ipstart}Done. Click Next to continue the IP conversation.</p>";
+		$contents = "<p><input type=\"hidden\" name=\"iptask\" value=\"{$next_task}\" />{$iptable}{$ipstart}Done. Click Next to continue the IP conversion.</p>";
 
 		global $footer_extra;
 		$footer_extra = "<script type=\"text/javascript\">$(document).ready(function() { var button = $('.submit_button'); if(button) { button.val('Automatically Redirecting...'); button.prop('disabled', true); button.css('color', '#aaa'); button.css('border-color', '#aaa'); document.forms[0].submit(); } });</script>";
@@ -2391,14 +2397,26 @@ function upgrade30_updatetheme()
 
 function upgrade30_acppin()
 {
-	global $db, $mybb, $output;
+	global $config, $output;
 
-	$output->print_header("Add an ACP Pin");
+	$output->print_header("Add an ACP PIN");
 
 	echo "<p>We added a new security function in 1.8: The possibility to set a security PIN which you need to enter the ACP.<br />\n";
 	echo "If you don't want to set a PIN you can simply skip this step (leave the field below empty). You can still set the PIN later (see the docs to see how).</p>\n";
-
-	echo "<b>PIN:</b> <input type=\"password\" name=\"pin\" />";
+	echo '<div class="border_wrapper">
+			<div class="title">ACP PIN Configuration</div>
+			<table class="general" cellspacing="0">
+				<tbody>
+				<tr>
+					<th colspan="2" class="first last">ACP Security PIN</th>
+				</tr>
+				<tr class="first">
+					<td class="first"><label for="bbname">PIN:</label></td>
+					<td class="last alt_col"><input type="password" class="text_input" name="pin" id="pin" value="'.$config['secret_pin'].'" /></td>
+				</tr>
+				</tbody>
+			</table>
+		</div>';
 
 	$output->print_contents("<p>Click next to continue with the upgrade process.</p>");
 
@@ -2427,10 +2445,23 @@ function upgrade30_acppin_submit()
 
 		$file = @fopen(MYBB_ROOT."inc/config.php", "r+");
 
-		// Set the pointer before the closing php tag to remove it
-		@fseek($file, -2, SEEK_END);
+		$contents = '';
+		while(!@feof($file))
+		{
+			$contents .= @fread($file, 8436);
+		}
 
-		@fwrite($file, "/**
+		$contents_temp = str_replace(array("\r", "\t", "\n", " ", "\0", "\x0B"), '', $contents);
+
+		// Set the pointer before the closing php tag to remove it
+		$pos = strrpos($contents, "?>");
+		if(my_substr($contents_temp, -2) == "?>")
+		{
+			@fseek($file, $pos, SEEK_SET);
+		}
+
+		@fwrite($file, "
+/**
  * Admin CP Secret PIN
  *  If you wish to request a PIN
  *  when someone tries to login
@@ -2474,4 +2505,3 @@ function recache_existing_styles()
 
 	return $num_updated;
 }
-

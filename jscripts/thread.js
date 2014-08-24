@@ -5,6 +5,9 @@ var Thread = {
 			Thread.quickEdit();
 			Thread.initQuickReply();
 			Thread.initMultiQuote();
+			
+			// Set spinner image
+			$('#quickreply_spinner img').attr('src', spinner_image);
 		});
 	},
 
@@ -80,6 +83,9 @@ var Thread = {
 	{
 		if(use_xmlhttprequest == 1)
 		{
+			// Spinner!
+			$('#quickreply_spinner').show();
+
 			$.ajax(
 			{
 				url: 'xmlhttp.php?action=get_multiquoted&load_all=1',
@@ -87,6 +93,9 @@ var Thread = {
 				complete: function (request, status)
 				{
 					Thread.multiQuotedLoaded(request, status);
+					
+					// Get rid of spinner
+					$('#quickreply_spinner').hide();
 				}
 			});
 
@@ -165,7 +174,7 @@ var Thread = {
 
 			$('#pid_' + pid).editable("xmlhttp.php?action=edit_post&do=update_post&pid=" + pid + '&my_post_key=' + my_post_key,
 			{
-				indicator: '<img src="'+spinner_image+'">',
+				indicator: spinner,
 				loadurl: "xmlhttp.php?action=edit_post&do=get_post&pid=" + pid,
 				type: "textarea",
 				rows: 12,
@@ -270,7 +279,7 @@ var Thread = {
 				$('#pid_' + pid + ' textarea').attr('id', 'quickedit_' + pid);
 				if(allowEditReason == 1 && $('#quickedit_' + pid + '_editreason').length == 0)
 				{
-					$('#quickedit_' + pid).after(lang.editreason + ': <input type="text" class="textbox" name="editreason" size="50" maxlength="150" id="quickedit_' + pid + '_editreason" /><br />');
+					$('#quickedit_' + pid).after('<label for="editreason">' + lang.editreason + ':</label> <input type="text" class="textbox" style="margin: 6px 0;" name="editreason" size="40" maxlength="150" id="quickedit_' + pid + '_editreason" /><br />');
 				}
 			});
         });
@@ -300,6 +309,9 @@ var Thread = {
 
 		this.quick_replying = 1;
 		var post_body = $('#quick_reply_form').serialize();
+		
+		// Spinner!
+		$('#quickreply_spinner').show();
 
 		$.ajax(
 		{
@@ -310,6 +322,9 @@ var Thread = {
         	complete: function (request, status)
         	{
 		  		Thread.quickReplyDone(request, status);
+				
+				// Get rid of spinner
+				$('#quickreply_spinner').hide();
           	}
 		});
 
