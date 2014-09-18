@@ -916,10 +916,11 @@ if($mybb->input['action'] == "send")
 		$to = htmlspecialchars_uni($db->fetch_field($query, 'username')).', ';
 	}
 
-	$max_recipients = '';
+	$max_recipients = $max_selection_size = '';
 	if($mybb->usergroup['maxpmrecipients'] > 0)
 	{
 		$max_recipients = $lang->sprintf($lang->max_recipients, $mybb->usergroup['maxpmrecipients']);
+		$max_selection_size = "maximumSelectionSize: {$mybb->usergroup['maxpmrecipients']},";
 	}
 
 	if($send_errors)
